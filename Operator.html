@@ -101,7 +101,41 @@
     <script>
         function loadPhraseSwitcher() {
             const phraseSwitcher = document.getElementById("phrase-switcher");
-            const savedPhrases = JSON.parse(localStorage.getItem("phraseBoards")) || [{"phrase":"A PHASE","tiles":6,"questions":[{"question":"a","answer":"a"},{"question":"b","answer":"b"},{"question":"c","answer":"c"},{"question":"d","answer":"d"}]},{"phrase":"PHRASES","tiles":7,"questions":[{"question":"What is the capitol of france","answer":"P"}]}];
+                        const savedPhrases = JSON.parse(localStorage.getItem("phraseBoards")) || 
+            [
+                {
+                    "phrase": "A PHASE",
+                    "tiles": 6,
+                    "questions": [
+                        {
+                            "question": "a",
+                            "answer": "a"
+                        },
+                        {
+                            "question": "b",
+                            "answer": "b"
+                        },
+                        {
+                            "question": "c",
+                            "answer": "c"
+                        },
+                        {
+                            "question": "d",
+                            "answer": "d"
+                        }
+                    ]
+                },
+                {
+                    "phrase": "PHRASES",
+                    "tiles": 7,
+                    "questions": [
+                        {
+                            "question": "What is the capitol of france",
+                            "answer": "P"
+                        }
+                    ]
+                }
+            ];
             phraseSwitcher.innerHTML = '<option value="" disabled selected>Select a Phrase</option>';
 
             savedPhrases.forEach((board, index) => {
