@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phrase Management</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f9f9f9;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: row;
+            gap: 20px;
+        }
+
+        .container {
+            background-color: #ffffff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            width: 45%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        h1, h2 {
+            text-align: center;
+            margin-bottom: 15px;
+        }
+
+        input, button {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            font-size: 1em;
+        }
+
+        button {
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        .list-container {
+            padding: 10px;
+        }
+
+        .phrase-item, .question-item {
+            background-color: #f0f0f0;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .delete-btn {
+            background-color: #dc3545;
+            color: white;
+            padding: 5px;
+            margin-left: 10px;
+            border-radius: 5px;
+            border: none;
+            cursor: pointer;
+        }
+
+        .delete-btn:hover {
+            background-color: #c82333;
+        }
+
+        .drop-zone {
+            border: 2px dashed #ccc;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            color: #888;
+            margin: 20px 0;
+        }
+
+        .drop-zone.dragover {
+            border-color: #007BFF;
+            background-color: #f0f8ff;
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Manage Phrases</h1>
+        <input type="text" id="phrase-input" placeholder="Enter Phrase Name">
+        <button id="add-phrase-btn" onclick="addPhrase()">Add Phrase</button>
+        <h2>Saved Phrases</h2>
+        <div id="phrase-list" class="list-container"></div>
+    </div>
+
+    <div class="container">
+        <h1>Questions for: <span id="selected-phrase">None</span></h1>
+        <div id="question-form" class="hidden">
+            <input type="text" id="question-input" placeholder="Enter Question">
+            <input type="text" id="answer-input" placeholder="Enter Answer">
+            <button id="add-question-btn" onclick="addQuestion()">Add Question</button>
+        </div>
+        <h2>Question List</h2>
+        <div id="question-list" class="list-container"></div>
+    </div>
+
+    <div class="container">
+        <h1>Manage Questions File</h1>
+        <div class="drop-zone" id="drop-zone">
+            Drag and Drop `questions.txt` Here to Load Questions
+        </div>
+        <button id="export-btn" onclick="exportQuestions()">Export Questions</button>
+    </div>
+
+    <script>
+        let phrases = JSON.parse(localStorage.getItem('phraseBoards')) || [];
+        let selectedPhraseIndex = null;
+
+        function loadPhrases() {
+            const phraseList = document.getElementById('phrase-list');
+            phraseList.innerHTML = "";
+            phrases.forEach((phraseObj, index) => {
+                const phraseDiv = document.createElement('div');
+                phraseDiv.classList.add('phrase-item');
+                phraseDiv.innerHTML = `<span>${phraseObj.phrase} (${phraseObj.tiles} tiles)</span> 
+                <button class="delete-btn" onclick="deletePhrase(${index})">Delete</button>`;
+                phraseDiv.onclick = () => selectPhrase(index);
+                phraseList.appendChild(phraseDiv);
+            });
+        }
+
+        function addPhrase() {
+            const phraseInput = document.getElementById('phrase-input').value.trim();
+            if (!phraseInput) {
+                alert("Please enter a phrase.");
+                return;
+            }
+            const tileCount = phraseInput.replace(/\s/g, "").length;
+            phrases.push({ phrase: phraseInput.toUpperCase(), tiles: tileCount, questions: [] });
+            localStorage.setItem('phraseBoards', JSON.stringify(phrases));
+            document.getElementById('phrase-input').value = "";
+            loadPhrases();
+        }
+
+        function deletePhrase(index) {
+            phrases.splice(index, 1);
+            localStorage.setItem('phraseBoards', JSON.stringify(phrases));
+            loadPhrases();
+            clearQuestions();
+        }
+
+        function selectPhrase(index) {
+            selectedPhraseIndex = index;
+            document.getElementById('selected-phrase').textContent = phrases[index].phrase;
+            document.getElementById('question-form').classList.remove('hidden');
+            loadQuestions(index);
+        }
+
+        function loadQuestions(index) {
+            const questionList = document.getElementById('question-list');
+            questionList.innerHTML = "";
+            if (phrases[index].questions.length === 0) {
+                questionList.innerHTML = "<p>No questions added yet.</p>";
+                return;
+            }
+            phrases[index].questions.forEach((qObj, qIndex) => {
+                const questionDiv = document.createElement('div');
+                questionDiv.classList.add('question-item');
+                questionDiv.innerHTML = `<span><strong>Q:</strong> ${qObj.question} <br><strong>A:</strong> ${qObj.answer}</span>
+                <button class="delete-btn" onclick="deleteQuestion(${index}, ${qIndex})">Delete</button>`;
+                questionList.appendChild(questionDiv);
+            });
+        }
+
+        function addQuestion() {
+            if (selectedPhraseIndex === null) {
+                alert("Please select a phrase first.");
+                return;
+            }
+            const questionInput = document.getElementById('question-input').value.trim();
+            const answerInput = document.getElementById('answer-input').value.trim();
+            if (!questionInput || !answerInput) {
+                alert("Enter both a question and an answer.");
+                return;
+            }
+            phrases[selectedPhraseIndex].questions.push({ question: questionInput, answer: answerInput });
+            localStorage.setItem('phraseBoards', JSON.stringify(phrases));
+            document.getElementById('question-input').value = "";
+            document.getElementById('answer-input').value = "";
+            loadQuestions(selectedPhraseIndex);
+        }
+
+        function deleteQuestion(phraseIndex, questionIndex) {
+            phrases[phraseIndex].questions.splice(questionIndex, 1);
+            localStorage.setItem('phraseBoards', JSON.stringify(phrases));
+            loadQuestions(phraseIndex);
+        }
+
+        function clearQuestions() {
+            document.getElementById('selected-phrase').textContent = "None";
+            document.getElementById('question-form').classList.add('hidden');
+            document.getElementById('question-list').innerHTML = "";
+            selectedPhraseIndex = null;
+        }
+
+        function exportQuestions() {
+            const questionsData = [
+                "WARNING: The content and questions in this file must not be distributed without express written consent from SISCmedia.",
+                "",
+                ...phrases.map(phrase => {
+                    return {
+                        phrase: phrase.phrase,
+                        tiles: phrase.tiles,
+                        questions: phrase.questions
+                    };
+                })
+            ];
+            const blob = new Blob([questionsData.map(q => typeof q === 'string' ? q : JSON.stringify(q, null, 2)).join('\n')], { type: 'text/plain' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'questions.txt';
+            link.click();
+        }
+
+        function handleFileUpload(file) {
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    if (Array.isArray(data)) {
+                        phrases = data;
+                        localStorage.setItem('phraseBoards', JSON.stringify(phrases));
+                        loadPhrases();
+                        clearQuestions();
+                        alert("Questions loaded successfully! Existing data has been overwritten.");
+                    } else {
+                        throw new Error("Invalid file format");
+                    }
+                } catch (err) {
+                    alert("Failed to load questions. Make sure the file format is correct.");
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        const dropZone = document.getElementById('drop-zone');
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('dragover');
+        });
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            const file = e.dataTransfer.files[0];
+            if (file && file.type === 'text/plain') {
+                handleFileUpload(file);
+            } else {
+                alert("Please drop a valid text file.");
+            }
+        });
+
+        window.addEventListener('beforeunload', (e) => {
+            const confirmationMessage = "Your Phrases, Questions and Answers have been saved to THIS PC ONLY. If you want to send these questions over, you have to export the questions first.";
+            e.returnValue = confirmationMessage;
+            return confirmationMessage;
+        });
+
+        loadPhrases();
+    </script>
+</body>
+</html>

@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Operator Page</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: row;
+            align-items: flex-start;
+            justify-content: center;
+            height: 100vh;
+            background-color: #e0e0e0;
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        #operator-controls, #phrase-manager {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            background-color: #f8f8f8;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        #operator-controls {
+            margin-right: 40px;
+        }
+        h1, h2 {
+            margin-bottom: 20px;
+        }
+        input, button, select {
+            font-size: 1.2em;
+            padding: 10px;
+            margin: 10px;
+        }
+        button {
+            border: none;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .correct { background-color: green; }
+        .incorrect { background-color: red; }
+        .next-question { background-color: blue; }
+        .animate-btn { background-color: orange; }
+        .cue-question { background-color: purple; }
+        .disabled { opacity: 0.5; pointer-events: none; }
+        #question-list {
+            margin-top: 20px;
+            width: 300px;
+            max-height: 300px;
+            overflow-y: auto;
+            background-color: #fff;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        .question-item {
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Operator Controls -->
+    <div id="operator-controls">
+        <h1>Operator Controls</h1>
+
+        <!-- Phrase Switcher -->
+        <select id="phrase-switcher" onchange="selectPhrase()">
+            <option value="" disabled selected>Loading Phrases...</option>
+        </select>
+        <div id="phrase-display">No phrase selected.</div>
+        <div id="tile-count-display"></div>
+
+        <!-- Animation Button -->
+        <button class="animate-btn" onclick="triggerTileAnimation()">Animate Tiles</button>
+
+        <!-- Answer Controls -->
+        <input type="text" id="answer-input" placeholder="Enter answer here">
+        <button id="submit-btn" onclick="submitAnswer()">Submit Answer</button>
+        <button id="correct-btn" class="correct disabled" onclick="setAnswerColor('green')">Correct</button>
+        <button id="incorrect-btn" class="incorrect disabled" onclick="setAnswerColor('red')">Incorrect</button>
+        <button id="next-btn" class="next-question disabled" onclick="nextQuestion()">Next Question</button>
+        <button id="back-letter-btn" class="next-question" onclick="removeLastLetter()">Back One Letter</button>
+    </div>
+
+    <!-- Questions List -->
+    <div id="phrase-manager">
+        <h2>Questions for Selected Phrase</h2>
+        <div id="question-list">No phrase selected.</div>
+    </div>
+
+    <script>
+        function loadPhraseSwitcher() {
+            const phraseSwitcher = document.getElementById("phrase-switcher");
+            const savedPhrases = JSON.parse(localStorage.getItem("phraseBoards")) || [];
+
+            phraseSwitcher.innerHTML = '<option value="" disabled selected>Select a Phrase</option>';
+
+            savedPhrases.forEach((board, index) => {
+                const option = document.createElement("option");
+                option.value = index;
+                option.textContent = `${board.phrase} (${board.tiles} tiles)`;
+                phraseSwitcher.appendChild(option);
+            });
+        }
+
+        function selectPhrase() {
+            const phraseSwitcher = document.getElementById("phrase-switcher");
+            const selectedIndex = phraseSwitcher.value;
+            const savedPhrases = JSON.parse(localStorage.getItem("phraseBoards")) || [];
+
+            if (savedPhrases[selectedIndex]) {
+                const selectedPhrase = savedPhrases[selectedIndex];
+                document.getElementById("phrase-display").textContent = `Selected Phrase: ${selectedPhrase.phrase}`;
+                document.getElementById("tile-count-display").textContent = `Total Tiles: ${selectedPhrase.tiles}`;
+
+                localStorage.setItem("currentPhrase", selectedPhrase.phrase);
+                localStorage.setItem("currentTiles", selectedPhrase.tiles);
+                localStorage.setItem("preloadTiles", "true");
+
+                loadQuestions(selectedPhrase.questions);
+            }
+        }
+
+        function loadQuestions(questions) {
+            const questionList = document.getElementById("question-list");
+            questionList.innerHTML = "";
+
+            if (!questions || questions.length === 0) {
+                questionList.innerHTML = "<p>No questions added yet.</p>";
+                return;
+            }
+
+            questions.forEach((qObj, index) => {
+                const questionDiv = document.createElement("div");
+                questionDiv.classList.add("question-item");
+
+                const questionText = document.createElement("span");
+                questionText.innerHTML = `<strong>Q:</strong> ${qObj.question}`;
+
+                const cueButton = document.createElement("button");
+                cueButton.textContent = "Cue Question";
+                cueButton.classList.add("cue-question");
+                cueButton.onclick = () => cueQuestion(qObj.question);
+
+                questionDiv.appendChild(questionText);
+                questionDiv.appendChild(cueButton);
+                questionList.appendChild(questionDiv);
+            });
+        }
+
+        function cueQuestion(question) {
+            localStorage.setItem("currentQuestion", question);
+        }
+
+        function triggerTileAnimation() {
+            const currentTiles = localStorage.getItem("currentTiles");
+
+            if (!currentTiles) {
+                alert("Please select a phrase before animating.");
+                return;
+            }
+
+            localStorage.setItem("animateTiles", currentTiles);
+        }
+
+        function submitAnswer() {
+            const answer = document.getElementById("answer-input").value.trim();
+            if (!answer) return;
+
+            localStorage.setItem("submittedAnswer", answer);
+            localStorage.setItem("answerColor", "blue");
+
+            document.getElementById("correct-btn").classList.remove("disabled");
+            document.getElementById("incorrect-btn").classList.remove("disabled");
+        }
+
+        function setAnswerColor(color) {
+            localStorage.setItem("answerColor", color);
+
+            document.getElementById("submit-btn").classList.add("disabled");
+            document.getElementById("correct-btn").classList.add("disabled");
+            document.getElementById("incorrect-btn").classList.add("disabled");
+            document.getElementById("next-btn").classList.remove("disabled");
+        }
+
+        function nextQuestion() {
+            document.getElementById("answer-input").value = "";
+            localStorage.removeItem("submittedAnswer");
+            localStorage.removeItem("answerColor");
+
+            localStorage.setItem("nextQuestion", "true");
+
+            document.getElementById("submit-btn").classList.remove("disabled");
+            document.getElementById("correct-btn").classList.add("disabled");
+            document.getElementById("incorrect-btn").classList.add("disabled");
+            document.getElementById("next-btn").classList.add("disabled");
+        }
+
+        function removeLastLetter() {
+            localStorage.setItem("removeLastLetter", "true");
+        }
+
+        // Load phrases on page load
+        window.onload = function () {
+            loadPhraseSwitcher();
+        };
+    </script>
+
+</body>
+</html>
